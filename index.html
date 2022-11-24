@@ -1,0 +1,100 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Schedsim vizualizer</title>
+  <meta name="description">
+
+  <meta property="og:type" content="website">
+
+    <style>
+        body {
+            background-color: aliceblue;
+        }
+
+        canvas {
+            border: 1px solid black;
+            background-color: white;
+        }
+    </style>
+
+</head>
+
+<body>
+<h1>Schedsim vizualizer</h1>
+
+<div><input type="file" name="inputfile"
+            id="inputfile">
+        </div>
+<canvas id="plot" width="500px" height="300px" ></canvas>
+<script type="">
+    function parseEvents(text) {
+        const lines = text.split('\n');
+        let events = [];
+        lines.forEach(line => {
+            console.log(line);
+            let vars = line.split(',');
+            let event = {
+                timestamp: parseFloat(vars[0]),
+                task: parseInt(vars[1]),
+                job: parseInt(vars[2]),
+                processor: parseInt(vars[3]),
+                eventType: vars[4],
+                extraData: parseInt(vars[5])
+            };
+            events.push(event);
+        });
+        return events;
+    }
+
+    function plotSchedule(schedule, ctx, width, height) {
+        function xPosFromTimestamp(timestamp) {
+            return timestamp * schedule.length / width;
+        }
+
+        console.log("Tasks:", schedule.numTasks);
+
+        for (let i = 1; i <= schedule.numTasks; i++) {
+            let yPos = height - (i - 1) * height / schedule.numTasks;
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(0, yPos);
+            ctx.lineTo(width, yPos);
+            ctx.stroke();
+        }
+
+
+    }
+
+    function onFileLoad(text) {
+        const events = parseEvents(text);
+        let schedule = {
+            events: events,
+            length: Math.max(...events.map(event => event.timestamp)),
+            numTasks: Math.max(...events.map(event => event.task))
+        };
+
+
+        const canvas = document.getElementById('plot');
+        const ctx = canvas.getContext('2d');
+
+        plotSchedule(schedule, ctx, 500, 300);
+
+    }
+
+    document.getElementById('inputfile')
+            .addEventListener('change', function() {
+            var fr=new FileReader();
+            fr.onload=function(){
+                onFileLoad(fr.result);
+            }
+              
+            fr.readAsText(this.files[0]);
+        })
+
+</script>
+</body>
+</html>

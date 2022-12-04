@@ -138,25 +138,20 @@
             return element;
         }
 
-        function arrowLine(taskNum, timestamp) {
+        function arrowLine(taskNum, timestamp, color) {
             var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'line'); //Create a path in SVG's namespace
 
             newElement.setAttribute("x1", xPosFromTimestamp(timestamp));
             newElement.setAttribute("y1", yTaskBase(taskNum));
             newElement.setAttribute("x2", xPosFromTimestamp(timestamp));
-            newElement.setAttribute("y2", yTaskBase(taskNum) - 30);
-            newElement.style.stroke = "#000"; //Set stroke colour
+            newElement.setAttribute("y2", yTaskBase(taskNum) - 37);
+            newElement.style.stroke = color; //Set stroke colour
             newElement.style.strokeWidth = "2px"; //Set stroke width
             return newElement;
         } 
 
-        function arrowHead(taskNum, timestamp) {
+        function arrowHeadUp(taskNum, timestamp, color) {
             var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'polygon'); //Create a path in SVG's namespace
-
-            // newElement.setAttribute("x1", xPosFromTimestamp(timestamp));
-            // newElement.setAttribute("y1", yTaskBase(taskNum));
-            // newElement.setAttribute("x2", xPosFromTimestamp(timestamp) + 30);
-            // newElement.setAttribute("y2", yTaskBase(taskNum) - 30);
             let xBase = xPosFromTimestamp(timestamp);
             let yBase = yTaskBase(taskNum) - 30;
             newElement.setAttribute("points", 
@@ -164,11 +159,70 @@
             String(xBase + 3) + ',' + String(yBase) + ' ' + 
             String(xBase) + ',' + String(yBase - 7) + ' '
             );
-            newElement.style.stroke = "black"; //Set stroke colour
-            newElement.style.fill = "black";
+            newElement.style.stroke = color; //Set stroke colour
+            newElement.style.fill = color;
             newElement.style.strokeWidth = "2px"; //Set stroke width
             return newElement;
         } 
+
+        function arrowHeadDown(taskNum, timestamp, color) {
+            var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'polygon'); //Create a path in SVG's namespace
+            let xBase = xPosFromTimestamp(timestamp);
+            let yBase = yTaskBase(taskNum);
+            newElement.setAttribute("points", 
+            String(xBase - 3) + ',' + String(yBase - 8) + ' ' + 
+            String(xBase + 3) + ',' + String(yBase - 8) + ' ' + 
+            String(xBase) + ',' + String(yBase - 1) + ' '
+            );
+            newElement.style.stroke = color; //Set stroke colour
+            newElement.style.fill = color;
+            newElement.style.strokeWidth = "2px"; //Set stroke width
+            return newElement;
+        } 
+
+        function jobBox(taskNum, start, finish) {
+            var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'polygon'); //Create a path in SVG's namespace
+            let yBase = yTaskBase(taskNum);
+            newElement.setAttribute("points", 
+            String(xPosFromTimestamp(start)) + ',' + String(yBase) + ' ' + 
+            String(xPosFromTimestamp(start)) + ',' + String(yBase - 30) + ' ' + 
+            String(xPosFromTimestamp(finish)) + ',' + String(yBase - 30) + ' ' + 
+            String(xPosFromTimestamp(finish)) + ',' + String(yBase) + ' '
+            );
+            newElement.style.stroke = '#058cad'; //Set stroke colour
+            newElement.style.fill = '#63d6f2';
+            newElement.style.strokeWidth = "2px"; //Set stroke width
+            return newElement;
+        }
+
+        // Draw jobs
+        schedule.events.filter(event => event.eventType == 'S').forEach(startEvent => {
+            finishEvent = schedule.events.filter(event => event.eventType == 'F' && event.task == startEvent.task && event.job == startEvent.job)[0];
+            if (finishEvent) {
+                svg.appendChild(jobBox(startEvent.task, startEvent.timestamp, finishEvent.timestamp));
+            } else {
+                svg.appendChild(jobBox(startEvent.task, startEvent.timestamp, schedule.length));
+            }
+        });
+
+        // Draw Activation and deadline events
+        schedule.events.forEach(event => {
+            // Add time label to event
+            let timeLabelOffset = String(event.timestamp).length > 1 ? 8 : 4;
+            svg.appendChild(svgText(xPosFromTimestamp(event.timestamp) - timeLabelOffset, yTaskBase(event.task) + 15, String(event.timestamp)));
+
+            switch (event.eventType) {
+                case 'A': // Activation
+                    svg.appendChild(arrowLine(event.task, event.timestamp, 'black'));
+                    svg.appendChild(arrowHeadUp(event.task, event.timestamp, 'black'));
+                break;
+                case 'D': // Deadline
+                    svg.appendChild(arrowLine(event.task, event.timestamp, 'red'));
+                    svg.appendChild(arrowHeadDown(event.task, event.timestamp, 'red'));
+                break;
+            }
+        });
+
 
         // Draw horizontal axis for each task
         for (let taskNum = 1; taskNum <= schedule.numTasks; taskNum++) {
@@ -178,15 +232,6 @@
             var text = svgText(0, yPos, "τ" + String(taskNum));
             svg.appendChild(text);
         }
-
-        // Draw arrow for each event
-        schedule.events.forEach(event => {
-            svg.appendChild(arrowLine(event.task, event.timestamp));
-            svg.appendChild(arrowHead(event.task, event.timestamp));
-
-            let timeLabelOffset = String(event.timestamp).length > 1 ? 8 : 4;
-            svg.appendChild(svgText(xPosFromTimestamp(event.timestamp) - timeLabelOffset, yTaskBase(event.task) + 15, String(event.timestamp)));
-        });
 
       
 

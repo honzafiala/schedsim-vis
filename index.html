@@ -30,13 +30,14 @@
       .box .row.content {
         flex: 1 1 auto;
         margin: 10px;
+        border: 1px solid black;
       }
       .box .row.footer {
         flex: 0 1 40px;
         margin-left: 10px;
       }
 
-      canvas {
+      svg {
         border: 1px solid black;
         padding: 0px;
       }
@@ -50,32 +51,25 @@
         <h1>Schedsim vizualizer</h1>
         <input type="file" name="inputfile" id="inputfile">
     </div>
-    <div class="row content" id="plotDiv">
-       <canvas id="plot"></canvas>
-    </div>
+       <svg class="row content" id="plot"></svg>
     <div class="row footer">footer</div>
 </div>
 
 
 
 <script type="">
-    let  canvas = document.getElementById('plot');
-    //canvas.style.width ='100%';
-    // canvas.style.height='100%';
-  // ...then set the internal size to match
-   // canvas.width  = canvas.offsetWidth;
- // canvas.height = canvas.offsetHeight;
+    let  svg = document.getElementById('plot');
 
- let dpi = window.devicePixelRatio;
+    var rect = svg.parentNode.getBoundingClientRect();
+    svg.width = rect.width;
+    svg.height = rect.height;
 
- var rect = canvas.parentNode.getBoundingClientRect();
-canvas.width = rect.width * dpi;
-canvas.height = rect.height * dpi;
+    console.log(svg.width);
 
     window.addEventListener("resize", () => {
-        rect = canvas.parentNode.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+        rect = svg.parentNode.getBoundingClientRect();
+        svg.width = rect.width;
+        svg.height = rect.height;
         console.log("resize");
     });
 
@@ -83,7 +77,6 @@ canvas.height = rect.height * dpi;
         const lines = text.split('\n');
         let events = [];
         lines.forEach(line => {
-            console.log(line);
             let vars = line.split(',');
             let event = {
                 timestamp: parseFloat(vars[0]),
@@ -98,13 +91,14 @@ canvas.height = rect.height * dpi;
         return events;
     }
 
-    function plotSchedule(schedule, ctx, width, height) {
+    function plotSchedule(schedule, svg, width, height) {
+
         function xPosFromTimestamp(timestamp) {
-            return width * timestamp / schedule.length;
+            return parseInt(20 + (width - 40) * timestamp / schedule.length);
         }
 
         function yTaskBase(taskNum) {
-            return height - (taskNum - 1) * height / (schedule.numTasks) - 1;
+            return parseInt((height - 20) - (taskNum - 1) * (height - 2) / (schedule.numTasks) - 1);
         }
 
         function arrow(event) {
@@ -124,20 +118,77 @@ canvas.height = rect.height * dpi;
             }
         }
 
-        schedule.events.forEach(event => {
-            arrow(event);
-        });
-
-        for (let i = 1; i <= schedule.numTasks; i++) {
-            let yPos = yTaskBase(i);
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = "black";
-            ctx.beginPath();
-            ctx.moveTo(0, yPos);
-            ctx.lineTo(width, yPos);
-            ctx.stroke();
+        function svgLine(x1, y1, x2, y2) {
+            var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'line'); //Create a path in SVG's namespace
+            newElement.setAttribute("x1", x1);
+            newElement.setAttribute("y1", y1);
+            newElement.setAttribute("x2", x2);
+            newElement.setAttribute("y2", y2);
+            newElement.style.stroke = "#000"; //Set stroke colour
+            newElement.style.strokeWidth = "2px"; //Set stroke width
+            return newElement;
         }
 
+        function svgText(x, y, text) {
+            var element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            element.setAttributeNS(null, 'x', x);
+            element.setAttributeNS(null, 'y', y);
+            var txt = document.createTextNode(text);
+            element.appendChild(txt);
+            return element;
+        }
+
+        function arrowLine(taskNum, timestamp) {
+            var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'line'); //Create a path in SVG's namespace
+
+            newElement.setAttribute("x1", xPosFromTimestamp(timestamp));
+            newElement.setAttribute("y1", yTaskBase(taskNum));
+            newElement.setAttribute("x2", xPosFromTimestamp(timestamp));
+            newElement.setAttribute("y2", yTaskBase(taskNum) - 30);
+            newElement.style.stroke = "#000"; //Set stroke colour
+            newElement.style.strokeWidth = "2px"; //Set stroke width
+            return newElement;
+        } 
+
+        function arrowHead(taskNum, timestamp) {
+            var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'polygon'); //Create a path in SVG's namespace
+
+            // newElement.setAttribute("x1", xPosFromTimestamp(timestamp));
+            // newElement.setAttribute("y1", yTaskBase(taskNum));
+            // newElement.setAttribute("x2", xPosFromTimestamp(timestamp) + 30);
+            // newElement.setAttribute("y2", yTaskBase(taskNum) - 30);
+            let xBase = xPosFromTimestamp(timestamp);
+            let yBase = yTaskBase(taskNum) - 30;
+            newElement.setAttribute("points", 
+            String(xBase - 3) + ',' + String(yBase) + ' ' + 
+            String(xBase + 3) + ',' + String(yBase) + ' ' + 
+            String(xBase) + ',' + String(yBase - 7) + ' '
+            );
+            newElement.style.stroke = "black"; //Set stroke colour
+            newElement.style.fill = "black";
+            newElement.style.strokeWidth = "2px"; //Set stroke width
+            return newElement;
+        } 
+
+        // Draw horizontal axis for each task
+        for (let taskNum = 1; taskNum <= schedule.numTasks; taskNum++) {
+            var yPos = parseInt(yTaskBase(taskNum));
+            var line = svgLine(20, yPos, width - 20, yPos);
+            svg.appendChild(line);            
+            var text = svgText(0, yPos, "τ" + String(taskNum));
+            svg.appendChild(text);
+        }
+
+        // Draw arrow for each event
+        schedule.events.forEach(event => {
+            svg.appendChild(arrowLine(event.task, event.timestamp));
+            svg.appendChild(arrowHead(event.task, event.timestamp));
+
+            let timeLabelOffset = String(event.timestamp).length > 1 ? 8 : 4;
+            svg.appendChild(svgText(xPosFromTimestamp(event.timestamp) - timeLabelOffset, yTaskBase(event.task) + 15, String(event.timestamp)));
+        });
+
+      
 
     }
 
@@ -152,9 +203,8 @@ canvas.height = rect.height * dpi;
 
 
 
-        const ctx = canvas.getContext('2d');
 
-        plotSchedule(schedule, ctx, canvas.width, canvas.height);
+        plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
 
     }
 

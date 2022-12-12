@@ -21,8 +21,7 @@
         flex-flow: column;
         height: 100%;
       }
-      .box .row {
-      }
+
       .box .row.header {
         flex: 0 1 auto;
         margin-left: 10px;
@@ -33,13 +32,27 @@
         border: 1px solid black;
       }
       .box .row.footer {
-        flex: 0 1 40px;
-        margin-left: 10px;
+        flex: 0 1 100px;
+        margin: 10px;
+        border: 1px solid black;
       }
 
       svg {
         border: 1px solid black;
         padding: 0px;
+      }
+
+      #plotControls {
+        display: flex;
+        margin-right: 10px;
+      }
+
+      #inputfile {
+        flex: 1 1 auto;
+      }
+
+      #zoomControls {
+
       }
     </style>
 
@@ -49,10 +62,19 @@
 <div class="box">
     <div class="row header">
         <h1>Schedsim vizualizer</h1>
-        <input type="file" name="inputfile" id="inputfile">
+        <div id="plotControls">
+            <input type="file" name="inputfile" id="inputfile">
+            <div>
+                Position:
+                <input id="range" type="range" value="0"/>
+                Zoom: 
+                <button id="zoomOut">-</button>
+                <button id="zoomIn">+</button>
+            </div>
+        </div>
     </div>
        <svg class="row content" id="plot"></svg>
-    <div class="row footer">footer</div>
+    <div class="row footer" id="footer"></div>
 </div>
 
 
@@ -64,13 +86,15 @@
     svg.width = rect.width;
     svg.height = rect.height;
 
-    console.log(svg.width);
 
     window.addEventListener("resize", () => {
         rect = svg.parentNode.getBoundingClientRect();
         svg.width = rect.width;
         svg.height = rect.height;
         console.log("resize");
+
+        if (schedule) 
+            plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
     });
 
     function parseEvents(text) {
@@ -93,30 +117,15 @@
 
     function plotSchedule(schedule, svg, width, height) {
 
+
         function xPosFromTimestamp(timestamp) {
-            return parseInt(20 + (width - 40) * timestamp / schedule.length);
+            return parseInt(20 + (width - 40) * (timestamp - zoom.zoomStart) * zoom.amount / schedule.length);
         }
 
         function yTaskBase(taskNum) {
             return parseInt((height - 20) - (taskNum - 1) * (height - 2) / (schedule.numTasks) - 1);
         }
 
-        function arrow(event) {
-            ctx.beginPath();
-            ctx.moveTo(xPosFromTimestamp(event.timestamp), yTaskBase(event.task));
-            ctx.lineTo(xPosFromTimestamp(event.timestamp), yTaskBase(event.task) - 20);
-            ctx.stroke();
-
-            switch (event.eventType) {
-                case 'A':
-                    break;
-                case 'D':
-                    break;
-            
-                default:
-                    break;
-            }
-        }
 
         function svgLine(x1, y1, x2, y2) {
             var newElement = document.createElementNS("http://www.w3.org/2000/svg", 'line'); //Create a path in SVG's namespace
@@ -195,15 +204,39 @@
             return newElement;
         }
 
-        // Draw jobs
-        schedule.events.filter(event => event.eventType == 'S').forEach(startEvent => {
-            finishEvent = schedule.events.filter(event => event.eventType == 'F' && event.task == startEvent.task && event.job == startEvent.job)[0];
-            if (finishEvent) {
-                svg.appendChild(jobBox(startEvent.task, startEvent.timestamp, finishEvent.timestamp));
-            } else {
-                svg.appendChild(jobBox(startEvent.task, startEvent.timestamp, schedule.length));
+        function checkDeadlineMiss(schedule, deadlineEvent) {
+            if (schedule.events.filter(event => event.task == deadlineEvent.task &&
+                event.job == deadlineEvent.job && event.eventType == 'F' && 
+                event.timestamp > deadlineEvent.timestamp).length)
+                return true;
+            else return false;
+        }
+
+        // Remove all elements
+        while (svg.lastChild) svg.removeChild(svg.lastChild);
+
+        for (let task = 1; task <= schedule.numTasks; task++) {
+            let startEvents = schedule.events.filter(event => event.eventType == 'S' && event.task == task);
+            let finishEvents = schedule.events.filter(event => event.eventType == 'F' && event.task == task);
+            console.log(startEvents, finishEvents);
+
+            for (let i = 0; i < startEvents.length; i++) {
+                if (startEvents[i].timestamp > zoom.zoomStart + schedule.length / zoom.amount) break;
+                let finishTime;
+                if (i < finishEvents.length) finishTime = Math.min(zoom.zoomStart + schedule.length / zoom.amount, finishEvents[i].timestamp);
+                else finishTime = zoom.zoomStart + schedule.length / zoom.amount;
+                svg.appendChild(jobBox(task, startEvents[i].timestamp, finishTime));
             }
-        });
+        }
+
+        // Draw jobs
+        // schedule.events.filter(event => event.eventType == 'S' && event.timestamp < zoom.zoomStart + schedule.length / zoom.amount).forEach(startEvent => {
+        //     finishEvent = schedule.events.filter(event => event.eventType == 'F' && event.task == startEvent.task && event.job == startEvent.job)[0];
+        //     let jobBoxFinish = Math.min(finishEvent ? finishEvent.timestamp : schedule.length, zoom.zoomStart + schedule.length / zoom.amount)
+        //     svg.appendChild(jobBox(startEvent.task, startEvent.timestamp, jobBoxFinish));
+        //     console.log(startEvent.task, startEvent.timestamp, finishEvent.timestamp);
+        //     console.log(startEvent, finishEvent);
+        // });
 
         // Draw Activation and deadline events
         schedule.events.forEach(event => {
@@ -217,8 +250,10 @@
                     svg.appendChild(arrowHeadUp(event.task, event.timestamp, 'black'));
                 break;
                 case 'D': // Deadline
-                    svg.appendChild(arrowLine(event.task, event.timestamp, 'red'));
-                    svg.appendChild(arrowHeadDown(event.task, event.timestamp, 'red'));
+                    let deadlineMiss = checkDeadlineMiss(schedule, event);
+                    let arrowColor = deadlineMiss ? 'red' : 'black'
+                    svg.appendChild(arrowLine(event.task, event.timestamp, arrowColor));
+                    svg.appendChild(arrowHeadDown(event.task, event.timestamp, arrowColor));
                 break;
             }
         });
@@ -237,20 +272,80 @@
 
     }
 
+    let schedule = null;
+    let zoom = {amount: 1, zoomStart: 0};
+    
+
     function onFileLoad(text) {
         const events = parseEvents(text);
-        let schedule = {
+        schedule = {
             events: events,
             length: Math.max(...events.map(event => event.timestamp)),
             numTasks: Math.max(...events.map(event => event.task))
         };
+        console.log(events);
 
-
-
+        showStatistics(schedule, document.getElementById('footer'));
 
 
         plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
 
+
+    }
+
+    function getAverageWaitingTime(schedule) {
+        let waitingTime = 0;
+        let numJobs = 0;
+        for (let task = 1; task <= schedule.numTasks; task++) {
+            let activationEvents = schedule.events.filter(event => event.eventType == 'A' && event.task == task);
+
+            activationEvents.every(activationEvent => {
+                let startEvents = schedule.events.filter(event => event.eventType == 'S' && event.task == task && event.job == activationEvent.job);
+                if (startEvents.length == 0) return false;
+                else {
+                    let startEvent = startEvents[0];
+                    console.log("Task", task, "job", activationEvent.job, 'activated at', activationEvent.timestamp, ', started at', startEvent.timestamp);
+                    waitingTime += startEvent.timestamp - activationEvent.timestamp;
+                    console.log(waitingTime);
+                    numJobs++;
+                    return true;
+                }
+            });
+        }
+        return waitingTime / numJobs;
+    }
+
+    function getAverageTurnAroundTime(schedule) {
+        let waitingTime = 0;
+        let numJobs = 0;
+        for (let task = 1; task <= schedule.numTasks; task++) {
+            let activationEvents = schedule.events.filter(event => event.eventType == 'A' && event.task == task);
+
+            activationEvents.every(activationEvent => {
+                let finishEvents = schedule.events.filter(event => event.eventType == 'F' && event.task == task && event.job == activationEvent.job);
+                if (finishEvents.length == 0) return false;
+                else {
+                    let finishEvent = finishEvents[finishEvents.length - 1];
+                    console.log("Task", task, "job", activationEvent.job, 'activated at', activationEvent.timestamp, ', finished at', finishEvent.timestamp);
+                    waitingTime += finishEvent.timestamp - activationEvent.timestamp;
+                    console.log(waitingTime);
+                    numJobs++;
+                    return true;
+                }
+            });
+        }
+        return waitingTime / numJobs;
+    }
+
+
+    function addDiv(content) {
+        return '<div>' + String(content) + '</div>';
+    }
+
+    function showStatistics(schedule, footer) {
+        footer.innerHTML = '';
+        footer.innerHTML += addDiv("Average waiting time: " + String(getAverageWaitingTime(schedule)));
+        footer.innerHTML += addDiv("Average Turnaround time: " + String(getAverageTurnAroundTime(schedule)));
     }
 
     document.getElementById('inputfile')
@@ -261,7 +356,35 @@
             }
               
             fr.readAsText(this.files[0]);
-        })
+        });
+
+    document.getElementById('zoomIn')
+        .addEventListener('click', function() {
+            zoom.amount *= 2;
+            
+            if (schedule) 
+            plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
+    });
+
+    document.getElementById('zoomOut')
+        .addEventListener('click', function() {
+            if (zoom.amount > 1)
+                zoom.amount /= 2;
+
+            if (schedule) 
+            plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
+    });
+
+    document.getElementById('range').oninput = function() {
+        console.log(this.value);
+        zoom.zoomStart = (schedule.length * this.value / 100);
+
+        if (schedule) 
+            plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
+    }
+
+
+    
 
 </script>
 </body>

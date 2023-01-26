@@ -120,7 +120,6 @@
         rect = svg.parentNode.getBoundingClientRect();
         svg.width = rect.width;
         svg.height = rect.height;
-        console.log("resize");
 
         if (schedule) 
             plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
@@ -228,7 +227,7 @@
             String(xPosFromTimestamp(finish)) + ',' + String(yBase) + ' '
             );
            // newElement.style.stroke = '#058cad'; //Set stroke colour
-            newElement.style.fill = '#63d6f2';
+            newElement.style.fill = '#63d6f2';`
          //   newElement.style.strokeWidth = "2px"; //Set stroke width
             return newElement;
         }
@@ -247,7 +246,6 @@
         for (let task = 1; task <= schedule.numTasks; task++) {
             let startEvents = schedule.events.filter(event => event.eventType == 'S' && event.task == task);
             let finishEvents = schedule.events.filter(event => event.eventType == 'F' && event.task == task);
-            console.log(startEvents, finishEvents);
 
             for (let i = 0; i < startEvents.length; i++) {
                 if (startEvents[i].timestamp > zoom.zoomStart + schedule.length / zoom.amount) break;
@@ -312,7 +310,6 @@
             length: Math.max(...events.map(event => event.timestamp)),
             numTasks: Math.max(...events.map(event => event.task))
         };
-        console.log(events);
 
         showStatistics(schedule, document.getElementById('footer'));
 
@@ -333,9 +330,7 @@
                 if (startEvents.length == 0) return false;
                 else {
                     let startEvent = startEvents[0];
-                    console.log("Task", task, "job", activationEvent.job, 'activated at', activationEvent.timestamp, ', started at', startEvent.timestamp);
                     waitingTime += startEvent.timestamp - activationEvent.timestamp;
-                    console.log(waitingTime);
                     numJobs++;
                     return true;
                 }
@@ -355,9 +350,7 @@
                 if (finishEvents.length == 0) return false;
                 else {
                     let finishEvent = finishEvents[finishEvents.length - 1];
-                    console.log("Task", task, "job", activationEvent.job, 'activated at', activationEvent.timestamp, ', finished at', finishEvent.timestamp);
                     waitingTime += finishEvent.timestamp - activationEvent.timestamp;
-                    console.log(waitingTime);
                     numJobs++;
                     return true;
                 }
@@ -405,7 +398,6 @@
     });
 
     document.getElementById('range').oninput = function() {
-        console.log(this.value);
         zoom.zoomStart = (schedule.length * this.value / 100);
 
         if (schedule) 

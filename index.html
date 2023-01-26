@@ -90,7 +90,7 @@
         <h1>Schedsim visualizer</h1>
         <div id="plotControls">
             <div id="left">
-            <button disabled>Generate Tikz code</button>
+            <button onclick="getTikz()">Generate Tikz code</button>
             <input type="file" name="inputfile" id="inputfile">
             </div>
             <div id="right">
@@ -124,6 +124,41 @@
         if (schedule) 
             plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
     });
+
+
+
+    function downloadFile(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+}
+
+
+    function getTikz() {
+        function addLine(x1, y1, x2, y2) {
+            return `\\draw[gray, thick] (${x1},${y1}) -- (${x2},${y2});\n` 
+        }
+
+        var content = "";
+        content += "\\begin{tikzpicture}\n";
+
+        for (let i = 0; i < schedule.numTasks; i++)
+            content += addLine(0, i, schedule.numTasks, i);
+
+
+        content += "\\end{tikzpicture}\n";
+        console.log(content);
+
+        navigator.clipboard.writeText(content);
+        alert("Tikz code copied to clipboard.");
+    }
 
     function parseEvents(text) {
         const lines = text.split('\n');

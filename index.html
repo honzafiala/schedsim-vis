@@ -130,6 +130,7 @@
         let events = [];
         lines.forEach(line => {
             let vars = line.split(',');
+            if (vars.length >= 6) {
             let event = {
                 timestamp: parseFloat(vars[0]),
                 task: parseInt(vars[1]),
@@ -139,6 +140,7 @@
                 extraData: parseInt(vars[5])
             };
             events.push(event);
+            }
         });
         return events;
     }
@@ -168,6 +170,7 @@
 
         function svgText(x, y, text) {
             var element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            console.log("setting attribute", x);
             element.setAttributeNS(null, 'x', x);
             element.setAttributeNS(null, 'y', y);
             var txt = document.createTextNode(text);
@@ -313,7 +316,7 @@
 
         showStatistics(schedule, document.getElementById('footer'));
 
-
+        console.log(schedule);
         plotSchedule(schedule, svg, svg.width.baseVal.value, svg.height.baseVal.value);
 
 

@@ -82,6 +82,7 @@
 
     </style>
 
+<script type="text/javascript" src="tikz.js"></script>
 </head>
 
 <body>
@@ -141,24 +142,6 @@
 }
 
 
-    function getTikz() {
-        function addLine(x1, y1, x2, y2) {
-            return `\\draw[gray, thick] (${x1},${y1}) -- (${x2},${y2});\n` 
-        }
-
-        var content = "";
-        content += "\\begin{tikzpicture}\n";
-
-        for (let i = 0; i < schedule.numTasks; i++)
-            content += addLine(0, i, schedule.numTasks, i);
-
-
-        content += "\\end{tikzpicture}\n";
-        console.log(content);
-
-        navigator.clipboard.writeText(content);
-        alert("Tikz code copied to clipboard.");
-    }
 
     function parseEvents(text) {
         const lines = text.split('\n');
@@ -205,7 +188,6 @@
 
         function svgText(x, y, text) {
             var element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            console.log("setting attribute", x);
             element.setAttributeNS(null, 'x', x);
             element.setAttributeNS(null, 'y', y);
             var txt = document.createTextNode(text);
@@ -265,7 +247,7 @@
             String(xPosFromTimestamp(finish)) + ',' + String(yBase) + ' '
             );
            // newElement.style.stroke = '#058cad'; //Set stroke colour
-            newElement.style.fill = '#63d6f2';
+            newElement.style.fill = 'gray';
          //   newElement.style.strokeWidth = "2px"; //Set stroke width
             return newElement;
         }
